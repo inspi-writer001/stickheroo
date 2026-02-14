@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mojo SDK Game Demo</title>
+    <link data-trunk rel="css" href="style/main.css" />
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        // Solana bridge: build and send transactions from WASM instructions
+        window.solanaBridge = {
+            connection: null,
+
+            getConnection: function() {
+                if (!this.connection) {
+                    this.connection = new solanaWeb3.Connection(
+                        solanaWeb3.clusterApiUrl('devnet'),
+                        'confirmed'
+                    );
+                }
+                return this.connection;
+            },
+
+            // Build a Transaction from serialized instruction data, sign with ephemeral keys + Phantom
+            buildAndSendTransaction: async function(instructionsJson, signerBytesArray) {
+                const phantom = window?.phantom?.solana;
+                if (!phantom || !phantom.isConnected) {
+                    throw new Error('Phantom wallet not connected');
+                }
+
+                const connection = this.getConnection();
+                const instructions = JSON.parse(instructionsJson);
+                const signerBytes = JSON.parse(signerBytesArray);
+
+                const tx = new solanaWeb3.Transaction();
+                const { blockhash } = await connection.getLatestBlockhash();
+                tx.recentBlockhash = blockhash;
+                tx.feePayer = phantom.publicKey;
+
+                // Add each instruction
+                for (const ix of instructions) {
+                    const programId = new solanaWeb3.PublicKey(new Uint8Array(ix.program_id));
+                    const keys = ix.accounts.map(acc => ({
+                        pubkey: new solanaWeb3.PublicKey(new Uint8Array(acc.pubkey)),
+                        isSigner: acc.is_signer,
+                        isWritable: acc.is_writable,
+                    }));
+                    const data = new Uint8Array(ix.data);
+                    tx.add(new solanaWeb3.TransactionInstruction({ keys, programId, data }));
+                }
+
+                // Partial sign with ephemeral signers
+                for (const keyBytes of signerBytes) {
+                    const keypair = solanaWeb3.Keypair.fromSecretKey(new Uint8Array(keyBytes));
+                    tx.partialSign(keypair);
+                }
+
+                // Sign and send via Phantom
+                const { signature } = await phantom.signAndSendTransaction(tx);
+                return signature;
+            },
+
+            // Connect to Phantom wallet
+            connectWallet: async function() {
+                const phantom = window?.phantom?.solana;
+                if (!phantom) {
+                    throw new Error('Phantom wallet not found. Please install the Phantom browser extension.');
+                }
+                const resp = await phantom.connect();
+                return resp.publicKey.toString();
+            },
+
+            // Disconnect from Phantom wallet
+            disconnectWallet: async function() {
+                const phantom = window?.phantom?.solana;
+                if (phantom) {
+                    await phantom.disconnect();
+                }
+            },
+
+            // Check if Phantom is connected
+            isConnected: function() {
+                const phantom = window?.phantom?.solana;
+                return phantom ? phantom.isConnected : false;
+            },
+
+            // Get connected public key
+            getPublicKey: function() {
+                const phantom = window?.phantom?.solana;
+                if (phantom && phantom.isConnected && phantom.publicKey) {
+                    return phantom.publicKey.toString();
+                }
+                return null;
+            }
+        };
+    </script>
+</body>
+</html>
