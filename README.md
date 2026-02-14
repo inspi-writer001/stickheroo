@@ -1,3 +1,5 @@
+[![Screenshot-from-2026-02-14-17-52-47](https://i.ibb.co/yn1Hk56X/Screenshot-from-2026-02-14-17-52-47.png)](https://ibb.co/jv2nwGyT)
+
 # StickHeroo 🚹️ - Mojo Demonstration
 
 This project serves as a practical demonstration of the [mojo-rust-sdk](https://github.com/inspi-writer001/mojo-rust-sdk-v0), showcasing its capabilities within a simple, turn-based RPG game.
