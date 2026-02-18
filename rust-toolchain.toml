@@ -1,0 +1,4 @@
+[toolchain]
+channel = "stable"
+targets = ["wasm32-unknown-unknown"]
+# If you use Leptos nightly features, change "stable" to "nightly"
