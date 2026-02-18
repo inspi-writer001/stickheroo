@@ -1,0 +1,11 @@
+[build]
+command = "rustup target add wasm32-unknown-unknown && cargo install trunk --locked && trunk build --release"
+publish = "dist"
+
+[build.environment]
+RUST_VERSION = "stable"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200

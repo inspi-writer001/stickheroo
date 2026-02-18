@@ -11,6 +11,8 @@ The application is built with Rust and the Leptos framework, and it runs entirel
 - **SDK Integration:** Demonstrates how to use the `mojo-rust-sdk` for blockchain interactions.
 - **Turn-Based Battle:** A simple combat system against an AI opponent.
 - **Solana Wallet:** Connect a Phantom wallet to handle transactions.
+- **NFT Minting:** Mint character NFTs with metadata and images stored on Arweave via Irys.
+- **Profile Pictures:** Upload and save profile pictures with on-chain metadata.
 - **Reactive UI:** The frontend is built with Leptos, a modern Rust framework for reactive web applications.
 
 ## Technology Stack
@@ -62,6 +64,9 @@ To run this project locally, you will need Rust and the `trunk` build tool insta
 7.  **Open in Browser:**
     Navigate to `http://127.0.0.1:8080` to view the application.
 
+8.  **Install Phantom Wallet:**
+    Install the [Phantom](https://phantom.app/) browser extension to interact with Solana features. Switch to Devnet mode in Phantom settings.
+
 ## Project Structure
 
 - **`Cargo.toml`**: Defines project dependencies, most importantly the `mojo-rust-sdk`.
@@ -72,7 +77,16 @@ To run this project locally, you will need Rust and the `trunk` build tool insta
   - **`app.rs`**: Defines the main application component, including routing and global state.
   - **`game_state.rs`**: Contains the core game logic and state definitions.
   - **`solana_bridge.rs`**: Handles communication between the Rust/WASM code and the browser's Solana wallet.
-  - **`wallet.rs`**: Provides wallet-related utilities.
+  - **`wallet.rs`**: Wallet utilities and Irys/Arweave upload functions for NFT metadata.
+  - **`svg_metadata.rs`**: SVG generation and base64 encoding for character avatars.
   - **`components/`**: Reusable UI components.
   - **`pages/`**: The different views or pages of the application.
 - **`style/`**: Contains the CSS stylesheets.
+
+## How It Works
+
+1. **Character Minting:** When you mint a character, a PNG is generated on a canvas and uploaded to Irys (Arweave devnet). The resulting URL is embedded in metadata JSON, which is also uploaded to Irys. The on-chain transaction references this metadata URI.
+
+2. **Profile Pictures:** Upload an image which is stored on Arweave via Irys. The profile metadata (with image URL) is then saved on-chain.
+
+3. **Battles:** Choose a minted character to battle against an AI opponent in a turn-based combat system.
