@@ -580,33 +580,72 @@ body {
     stroke: var(--red);
 }
 
+/* Shield styling */
+.stick-figure .shield {
+    stroke: var(--yellow);
+    filter: drop-shadow(0 0 4px #ffcc0080);
+}
+
+.stick-figure.enemy .shield {
+    stroke: #ff9900;
+    filter: drop-shadow(0 0 4px #ff990080);
+}
+
+/* Weapon inherits body stroke */
+.stick-figure .weapon {
+    stroke: var(--green-primary);
+}
+
+.stick-figure.enemy .weapon {
+    stroke: var(--red);
+}
+
+/* Player attack: lunge right with sword swing */
 .stick-figure.attacking {
-    animation: attack-anim 0.4s ease-out;
+    animation: player-attack 0.6s ease-in-out;
 }
 
-@keyframes attack-anim {
-    0% { transform: translateX(0); }
-    50% { transform: translateX(30px); }
-    100% { transform: translateX(0); }
+@keyframes player-attack {
+    0%   { transform: translateX(0) rotate(0deg); }
+    35%  { transform: translateX(80px) rotate(5deg); }
+    50%  { transform: translateX(80px) rotate(-3deg); }
+    100% { transform: translateX(0) rotate(0deg); }
 }
 
+/* Enemy attack: lunge left */
 .stick-figure.enemy.attacking {
-    animation: attack-anim-left 0.4s ease-out;
+    animation: enemy-attack 0.6s ease-in-out;
 }
 
-@keyframes attack-anim-left {
-    0% { transform: translateX(0); }
-    50% { transform: translateX(-30px); }
-    100% { transform: translateX(0); }
+@keyframes enemy-attack {
+    0%   { transform: translateX(0) rotate(0deg); }
+    35%  { transform: translateX(-80px) rotate(-5deg); }
+    50%  { transform: translateX(-80px) rotate(3deg); }
+    100% { transform: translateX(0) rotate(0deg); }
 }
 
+/* Hit flash: brightness flicker + small shake */
 .stick-figure.hit {
-    animation: hit-flash 0.3s;
+    animation: hit-flash 0.3s ease-out;
 }
 
 @keyframes hit-flash {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+    0%   { filter: brightness(1); transform: translateX(0); }
+    15%  { filter: brightness(2.5); transform: translateX(-5px); }
+    30%  { filter: brightness(0.5); transform: translateX(5px); }
+    50%  { filter: brightness(2); transform: translateX(-3px); }
+    75%  { filter: brightness(0.8); transform: translateX(2px); }
+    100% { filter: brightness(1); transform: translateX(0); }
+}
+
+/* Defend pulse: subtle scale + glow */
+.stick-figure.defending {
+    animation: defend-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes defend-pulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px transparent); }
+    50%      { transform: scale(1.05); filter: drop-shadow(0 0 8px var(--yellow)); }
 }
 
 /* ── Loading / Status ── */

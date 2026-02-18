@@ -1,23 +1,35 @@
-use mojo_rust_sdk::mojo;
+use bytemuck::{Pod, Zeroable};
 use serde::{Deserialize, Serialize};
 
-// On-chain compatible state structs via mojo! macro
-mojo! {
-    pub struct PlayerState {
-        pub health: [u8; 8],
-        pub max_health: [u8; 8],
-        pub attack: [u8; 8],
-        pub defense: [u8; 8],
-        pub score: [u8; 8],
-    }
+/// On-chain health/battle state.
+/// Must be #[repr(C)] + Pod + Zeroable with simple primitive types so
+/// bytemuck::bytes_of() produces the exact layout the Mojo SDK writes on-chain.
+/// Mirrors the pattern: World::create_state::<PlayerState>(...) / write_state::<PlayerState>(...)
+#[repr(C)]
+#[derive(Pod, Zeroable, Clone, Copy, Debug, PartialEq)]
+pub struct PlayerState {
+    pub health: u16,
+    pub max_health: u16,
+    pub attack: u16,
+    pub defense: u16,
+    pub score: u32,
 }
 
-mojo! {
-    pub struct EnemyState {
-        pub health: [u8; 8],
-        pub max_health: [u8; 8],
-        pub attack: [u8; 8],
-        pub defense: [u8; 8],
+impl PlayerState {
+    /// Build from a running BattleState snapshot for on-chain storage.
+    pub fn from_battle(battle: &BattleState) -> Self {
+        Self {
+            health: battle.player_hp.max(0) as u16,
+            max_health: battle.player_max_hp as u16,
+            attack: battle.player_atk as u16,
+            defense: battle.player_def as u16,
+            score: battle.score as u32,
+        }
+    }
+
+    /// Raw bytes to pass to build_create_state_tx / build_write_state_tx.
+    pub fn serialize_state(&self) -> Vec<u8> {
+        bytemuck::bytes_of(self).to_vec()
     }
 }
 

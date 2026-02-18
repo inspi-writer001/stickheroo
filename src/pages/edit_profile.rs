@@ -5,6 +5,8 @@ use wasm_bindgen_futures::spawn_local;
 use crate::app::{MintedCharacters, WalletState};
 use crate::game_state::CharacterTemplate;
 use crate::solana_bridge;
+use crate::svg_metadata;
+use crate::wallet;
 
 #[component]
 pub fn EditProfilePage() -> impl IntoView {
@@ -13,8 +15,8 @@ pub fn EditProfilePage() -> impl IntoView {
     let tx_status = RwSignal::new(Option::<Result<String, String>>::None);
     let saving = RwSignal::new(false);
     let avatar_url = RwSignal::new(Option::<String>::None);
+    let avatar_bytes = RwSignal::new(Option::<Vec<u8>>::None);
 
-    // Handle file selection
     let on_avatar_click = move |_| {
         let document = web_sys::window().unwrap().document().unwrap();
         let input: web_sys::HtmlInputElement = document
@@ -29,10 +31,21 @@ pub fn EditProfilePage() -> impl IntoView {
             let input: web_sys::HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
             if let Some(files) = input.files() {
                 if let Some(file) = files.get(0) {
-                    match web_sys::Url::create_object_url_with_blob(&file) {
-                        Ok(url) => avatar_url.set(Some(url)),
-                        Err(_) => web_sys::console::error_1(&"Failed to create object URL".into()),
+                    let file_clone = file.clone();
+                    let url = web_sys::Url::create_object_url_with_blob(&file).ok();
+                    if let Some(ref u) = url {
+                        avatar_url.set(Some(u.clone()));
                     }
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let array_buf = wasm_bindgen_futures::JsFuture::from(
+                            file_clone.array_buffer()
+                        ).await.ok();
+                        if let Some(ab) = array_buf {
+                            let js_arr = js_sys::Uint8Array::new(&ab);
+                            let bytes = js_arr.to_vec();
+                            avatar_bytes.set(Some(bytes));
+                        }
+                    });
                 }
             }
         });
@@ -50,6 +63,7 @@ pub fn EditProfilePage() -> impl IntoView {
         }
 
         let pubkey_str = ws.pubkey.unwrap_or_default();
+        let avatar_data = avatar_bytes.get_untracked();
         saving.set(true);
         tx_status.set(None);
 
@@ -61,11 +75,30 @@ pub fn EditProfilePage() -> impl IntoView {
                         .map_err(|_| "Invalid pubkey length".to_string())?;
                 let pubkey = solana_pubkey::Pubkey::new_from_array(pubkey_bytes);
 
+                let profile_uri = if let Some(bytes) = avatar_data {
+                    tx_status.set(Some(Ok("Uploading profile picture...".into())));
+                    let img_url = wallet::upload_bytes_to_irys(&bytes, "image/png").await
+                        .map_err(|e| format!("Failed to upload image: {}", e))?;
+                    
+                    let metadata = format!(
+                        "{{\"name\":\"Mojo Profile\",\"image\":\"{}\"}}",
+                        img_url
+                    );
+                    tx_status.set(Some(Ok("Uploading metadata...".into())));
+                    wallet::upload_to_irys(&metadata, "application/json").await
+                        .map_err(|e| format!("Failed to upload metadata: {}", e))?
+                } else {
+                    tx_status.set(Some(Ok("Creating profile...".into())));
+                    let json = "{\"name\":\"Mojo Profile\",\"image\":\"\"}".to_string();
+                    wallet::upload_to_irys(&json, "application/json").await
+                        .map_err(|e| format!("Failed to upload metadata: {}", e))?
+                };
+
                 let bundle = mojo_rust_sdk::world::World::build_profile_picture_tx(
                     pubkey,
                     pubkey,
                     "Mojo Profile",
-                    "https://arweave.net/demo/profile-metadata",
+                    &profile_uri,
                 )
                 .map_err(|e| format!("Build tx: {}", e))?;
 
@@ -139,28 +172,17 @@ pub fn EditProfilePage() -> impl IntoView {
                                 }.into_any();
                             }
                             let cards = minted.characters.iter().map(|ch| {
-                                let hue = ch.index * 60;
                                 let name = ch.name.clone();
                                 let template = all_characters.get(ch.index).cloned();
                                 let stats = template.map(|t| format!("HP:{} ATK:{} DEF:{}", t.hp, t.atk, t.def))
                                     .unwrap_or_default();
+                                let svg_raw = svg_metadata::generate_character_svg(ch.index, &ch.name);
+                                let svg_b64 = svg_metadata::base64_encode(svg_raw.as_bytes());
+                                let img_src = format!("data:image/svg+xml;base64,{}", svg_b64);
                                 view! {
                                     <div class="character-card" style="cursor: default;">
                                         <div class="character-avatar">
-                                            <svg width="60" height="60" viewBox="0 0 60 60">
-                                                <circle cx="30" cy="15" r="10" fill="none"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                                <line x1="30" y1="25" x2="30" y2="42"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                                <line x1="30" y1="30" x2="18" y2="38"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                                <line x1="30" y1="30" x2="42" y2="38"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                                <line x1="30" y1="42" x2="20" y2="55"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                                <line x1="30" y1="42" x2="40" y2="55"
-                                                    stroke={format!("hsl({}, 80%, 60%)", hue)} stroke-width="2"/>
-                                            </svg>
+                                            <img src={img_src} width="60" height="60" style="border-radius: 4px;" />
                                         </div>
                                         <div class="character-name">{name}</div>
                                         <div class="character-stats">{stats}</div>

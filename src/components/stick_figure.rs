@@ -4,6 +4,8 @@ use leptos::prelude::*;
 pub fn StickFigure(
     #[prop(default = false)] is_enemy: bool,
     #[prop(into, optional)] animating: Option<Signal<bool>>,
+    #[prop(into, optional)] defending: Option<Signal<bool>>,
+    #[prop(into, optional)] hit: Option<Signal<bool>>,
 ) -> impl IntoView {
     let base_class = if is_enemy {
         "stick-figure enemy"
@@ -12,12 +14,23 @@ pub fn StickFigure(
     };
 
     let class = move || {
+        let mut cls = base_class.to_string();
         if let Some(anim) = animating {
             if anim.get() {
-                return format!("{} attacking", base_class);
+                cls.push_str(" attacking");
             }
         }
-        base_class.to_string()
+        if let Some(def) = defending {
+            if def.get() {
+                cls.push_str(" defending");
+            }
+        }
+        if let Some(h) = hit {
+            if h.get() {
+                cls.push_str(" hit");
+            }
+        }
+        cls
     };
 
     // Mirror enemy figure
@@ -26,6 +39,8 @@ pub fn StickFigure(
     } else {
         ""
     };
+
+    let is_defending = move || defending.map(|d| d.get()).unwrap_or(false);
 
     view! {
         <svg class={class} viewBox="0 0 80 120">
@@ -37,11 +52,31 @@ pub fn StickFigure(
                 <circle cx="44" cy="18" r="2" fill="currentColor"/>
                 // Body
                 <line x1="40" y1="32" x2="40" y2="70"/>
-                // Arms
+                // Left arm (shield arm when defending)
                 <line x1="40" y1="42" x2="20" y2="55"/>
+                // Shield (shown when defending)
+                {move || {
+                    if is_defending() {
+                        Some(view! {
+                            <ellipse cx="16" cy="52" rx="8" ry="12" class="shield"
+                                fill="none" stroke-width="2.5"/>
+                        })
+                    } else {
+                        None
+                    }
+                }}
+                // Right arm (weapon arm)
                 <line x1="40" y1="42" x2="60" y2="50"/>
-                // Weapon (sword)
-                <line x1="60" y1="50" x2="72" y2="38" stroke-width="3"/>
+                // Sword (shown when NOT defending)
+                {move || {
+                    if !is_defending() {
+                        Some(view! {
+                            <line x1="60" y1="50" x2="72" y2="38" stroke-width="3" class="weapon"/>
+                        })
+                    } else {
+                        None
+                    }
+                }}
                 // Legs
                 <line x1="40" y1="70" x2="25" y2="100"/>
                 <line x1="40" y1="70" x2="55" y2="100"/>

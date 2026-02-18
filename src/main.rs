@@ -3,6 +3,7 @@ mod components;
 mod game_state;
 mod pages;
 mod solana_bridge;
+pub mod svg_metadata;
 mod wallet;
 
 fn main() {

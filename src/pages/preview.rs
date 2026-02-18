@@ -4,6 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 use crate::app::{CollectionState, SelectedCharacter, WalletState};
 use crate::game_state::CharacterTemplate;
 use crate::solana_bridge;
+use crate::wallet;
 
 #[component]
 pub fn PreviewPage() -> impl IntoView {
@@ -41,12 +42,25 @@ pub fn PreviewPage() -> impl IntoView {
                     .pubkey
                     .ok_or_else(|| "No collection — mint a character first".to_string())?;
 
+                tx_status.set(Some(Ok("Uploading image & metadata to Arweave...".into())));
+                let char_uri = wallet::upload_character_metadata(
+                    idx,
+                    &ch.name,
+                    &ch.description,
+                    ch.hp,
+                    ch.atk,
+                    ch.def,
+                ).await
+                .map_err(|e| format!("Arweave upload failed: {}", e))?;
+                tx_status.set(Some(Ok("Image on Arweave! Minting... (approve in Phantom)".into())));
+
+                tx_status.set(Some(Ok("Minting... (approve in Phantom)".into())));
                 let bundle = mojo_rust_sdk::world::World::build_character_tx(
                     &collection,
                     pubkey,
                     pubkey,
                     &ch.name,
-                    &format!("https://arweave.net/demo/{}", ch.name.to_lowercase()),
+                    &char_uri,
                 )
                 .map_err(|e| format!("Build tx: {}", e))?;
 

@@ -6,6 +6,8 @@ use crate::app::{CollectionState, MintedCharacterInfo, MintedCharacters, Selecte
 use crate::components::character_card::CharacterCard;
 use crate::game_state::CharacterTemplate;
 use crate::solana_bridge;
+use crate::svg_metadata;
+use crate::wallet;
 
 #[component]
 pub fn CharacterSelectPage() -> impl IntoView {
@@ -52,10 +54,13 @@ pub fn CharacterSelectPage() -> impl IntoView {
                 } else {
                     tx_status.set(Some(Ok("Creating collection... (approve in Phantom)".into())));
 
+                    let col_meta = r#"{"name":"Mojo Arena Characters","description":"On-chain characters for the Mojo Arena demo","image":""}"#;
+                    let collection_uri = wallet::upload_to_irys(col_meta, "application/json").await
+                        .unwrap_or_else(|_| svg_metadata::build_collection_metadata_uri("Mojo Arena Characters"));
                     let col_bundle = mojo_rust_sdk::world::World::build_character_collection_tx(
                         pubkey,
                         "Mojo Arena Characters",
-                        "https://arweave.net/demo/mojo-arena-collection",
+                        &collection_uri,
                     )
                     .map_err(|e| format!("Build collection tx: {}", e))?;
 
@@ -74,17 +79,28 @@ pub fn CharacterSelectPage() -> impl IntoView {
                     col_pubkey
                 };
 
-                // Step 2: Mint character into the collection
+                // Step 2: Generate PNG on canvas, upload image + metadata JSON to Arweave.
+                // This mirrors the TS pattern: upload image → get URL → embed in JSON → upload JSON.
+                // First upload prompts ONE Phantom approval for Irys devnet funding.
+                // If upload fails we abort — the metadata_uri must always be a real HTTPS URL.
+                tx_status.set(Some(Ok("Uploading image & metadata to Arweave...".into())));
+                let char_uri = wallet::upload_character_metadata(
+                    idx,
+                    &character.name,
+                    &character.description,
+                    character.hp,
+                    character.atk,
+                    character.def,
+                ).await
+                .map_err(|e| format!("Arweave upload failed: {}", e))?;
+                tx_status.set(Some(Ok("Image on Arweave! Minting character... (approve in Phantom)".into())));
                 let bundle = mojo_rust_sdk::world::World::build_select_character_tx(
                     &collection_pubkey,
                     pubkey, // authority
                     pubkey, // buyer
                     pubkey, // payer
                     &character.name,
-                    &format!(
-                        "https://arweave.net/demo/{}",
-                        character.name.to_lowercase()
-                    ),
+                    &char_uri,
                 )
                 .map_err(|e| format!("Build mint tx: {}", e))?;
 

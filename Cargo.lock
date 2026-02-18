@@ -1655,7 +1655,7 @@ dependencies = [
 [[package]]
 name = "mojo-rust-sdk"
 version = "0.1.0"
-source = "git+https://github.com/inspi-writer001/mojo-rust-sdk-v0?branch=frontend_compatibility#8c792b19ea729c9bc83fd5393926aadfa5f97b0a"
+source = "git+https://github.com/inspi-writer001/mojo-rust-sdk-v0?branch=frontend_compatibility#9095c11b54649e591fa67bbc47d22dd69a878d76"
 dependencies = [
  "anyhow",
  "bytemuck",

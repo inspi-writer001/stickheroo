@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mojo SDK Game Demo</title>
     <link data-trunk rel="css" href="style/main.css" />
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!--
+        Pinned to 1.95.4 — do NOT use @latest here.
+        @solana/web3.js v2 is a complete API rewrite (no Transaction class,
+        no Keypair.fromSecretKey, etc.) and will cause "Index out of range"
+        or other silent failures when used with the v1-style bridge below.
+    -->
+    <script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
 </head>
 <body>
     <div id="app"></div>
@@ -24,7 +30,7 @@
                 return this.connection;
             },
 
-            // Build a Transaction from serialized instruction data, sign with ephemeral keys + Phantom
+            // Build a Transaction from serialized instruction data, sign with ephemeral keys + Phantom.
             buildAndSendTransaction: async function(instructionsJson, signerBytesArray) {
                 const phantom = window?.phantom?.solana;
                 if (!phantom || !phantom.isConnected) {
@@ -40,7 +46,12 @@
                 tx.recentBlockhash = blockhash;
                 tx.feePayer = phantom.publicKey;
 
-                // Add each instruction
+                // Add each instruction.
+                // Use Uint8Array (standard browser API) — web3.js v1 internally bs58-encodes
+                // instruction data in compileMessage(), so it always ends up as a proper Buffer
+                // by the time Message.serialize() runs. Buffer.from() is NOT needed here and
+                // would require a separate buffer polyfill (Buffer is NOT exposed globally by
+                // the web3.js IIFE).
                 for (const ix of instructions) {
                     const programId = new solanaWeb3.PublicKey(new Uint8Array(ix.program_id));
                     const keys = ix.accounts.map(acc => ({
@@ -52,7 +63,7 @@
                     tx.add(new solanaWeb3.TransactionInstruction({ keys, programId, data }));
                 }
 
-                // Partial sign with ephemeral signers
+                // Partial sign with ephemeral signers (asset keypairs, collection keypairs, etc.)
                 for (const keyBytes of signerBytes) {
                     const keypair = solanaWeb3.Keypair.fromSecretKey(new Uint8Array(keyBytes));
                     tx.partialSign(keypair);
